@@ -1,11 +1,12 @@
 # pygraylogsimple
-Simple graylog lib that use offsets and limits
+Simple graylog lib that use offsets and limits to download all data (by default Graylog API limits messages to 150).
+I used pycurl to fetch data and ThreadPool for multithreading.
 
 ## Usage
 
-Initialize class with username, password, host and limit for each request to API
+Initialize class with username, password, host, limit for each request to API and logger function that accepts string as argument (optional)
 
-`api = pygraylogsimple.PyGraylogSimple('user', 'pass', 'http://<host>:<port>', 100)`
+`api = pygraylogsimple.PyGraylogSimple('user', 'pass', 'http://<host>:<port>', 100, <logger_func>)`
 
 Call function with query and date_time from and to
 
