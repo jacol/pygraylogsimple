@@ -22,7 +22,7 @@ class PyGraylogSimple:
 
         all_requests = []
         offset = 0
-        total_messages = 999  # 775288
+        total_messages = self._get_total_results(url)
 
         while offset < total_messages:
             full_url = url + '&offset=' + str(offset)
@@ -33,12 +33,18 @@ class PyGraylogSimple:
         results = pool.map(self._run, all_requests)
         return [item for sublist in results for item in sublist]     # flaten results
 
+    def _get_total_results(self, url):
+        result = self._get_response(url)
+        json_data = json.loads(result)
+        total_results = json_data['total_results']
+
+        if self.logger is not None:
+            self.logger('Total results to download: ' + str(total_results))
+
+        return total_results
+
     def _run(self, request):
-        response = BytesIO()
-        curl = _CurlInvoker()
-        curl.call(request.url, self.user, self.password, response)
-        result = response.getvalue()
-        response.close()
+        result = self._get_response(request.url)
 
         if self.logger is not None:
             self.logger('{0} - downloaded package with offset: {1}'.format(
@@ -46,6 +52,14 @@ class PyGraylogSimple:
 
         json_data = json.loads(result)
         return json_data['messages']
+
+    def _get_response(self, url):
+        response = BytesIO()
+        curl = _CurlInvoker()
+        curl.call(url, self.user, self.password, response)
+        result = response.getvalue()
+        response.close()
+        return result
 
 
 class _CurlInvoker:
