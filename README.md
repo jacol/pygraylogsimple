@@ -1,7 +1,7 @@
 # pygraylogsimple
 Simple graylog lib that use offsets and limits
 
-##Usage
+## Usage
 '''python
 
 #initialize class with username, password, host and limit for each request to API
