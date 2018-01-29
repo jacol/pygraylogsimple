@@ -1,14 +1,17 @@
 import pycurl
 from io import BytesIO
 import json
+import datetime
+from multiprocessing.dummy import Pool as ThreadPool
 
 class PyGraylogSimple:
 
-    def __init__(self, user, password, host, limit_per_request):
+    def __init__(self, user, password, host, limit_per_request, logger=None):
         self.user = user
         self.password = password
         self.host = host
         self.limit_per_request = limit_per_request
+        self.logger = logger
 
     def _build_search_universal_absolute_url(self, query, date_time_from, date_time_to):
         return '{0}/search/universal/absolute?query={1}&from={2}&to={3}&limit={4}'. \
@@ -17,28 +20,32 @@ class PyGraylogSimple:
     def search_universal_absolute(self, query, date_time_from, date_time_to):
         url = self._build_search_universal_absolute_url(query, date_time_from, date_time_to)
 
-        all_messages = []
+        all_requests = []
         offset = 0
+        total_messages = 999  # 775288
 
-        graylog_response = _GraylogResponse([], 0)
-
-        while offset <= graylog_response.total_messages:
+        while offset < total_messages:
             full_url = url + '&offset=' + str(offset)
-            graylog_response = self._run(full_url)
-            all_messages.extend(graylog_response.messages)
+            all_requests.append(_GraylogCallRequest(offset, full_url))
             offset += self.limit_per_request
 
-        return all_messages
+        pool = ThreadPool(20)
+        results = pool.map(self._run, all_requests)
+        return [item for sublist in results for item in sublist]     # flaten results
 
-    def _run(self, url):
+    def _run(self, request):
         response = BytesIO()
         curl = _CurlInvoker()
-        curl.call(url, self.user, self.password, response)
+        curl.call(request.url, self.user, self.password, response)
         result = response.getvalue()
         response.close()
 
+        if self.logger is not None:
+            self.logger('{0} - downloaded package with offset: {1}'.format(
+                datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y"), request.offset))
+
         json_data = json.loads(result)
-        return _GraylogResponse(json_data['messages'], json_data['total_results'])
+        return json_data['messages']
 
 
 class _CurlInvoker:
@@ -54,10 +61,7 @@ class _CurlInvoker:
         c.close()
 
 
-class _GraylogResponse:
-    messages = []
-    total_messages = 1
-
-    def __init__(self, messages, total_messages):
-        self.messages = messages
-        self.total_messages = total_messages
+class _GraylogCallRequest:
+    def __init__(self, offset, url):
+        self.offset = offset
+        self.url = url
