@@ -29,7 +29,7 @@ class PyGraylogSimple:
             all_requests.append(_GraylogCallRequest(offset, full_url))
             offset += self.limit_per_request
 
-        pool = ThreadPool(20)
+        pool = ThreadPool(10)
         results = pool.map(self._run, all_requests)
         return [item for sublist in results for item in sublist]     # flaten results
 
